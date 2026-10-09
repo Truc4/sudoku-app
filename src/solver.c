@@ -174,30 +174,143 @@ static int tech_sandwich(int r) {
     return 1;
 }
 
-static int func_all_filled(void) {
-    for (int c = 0; c < grid_w * grid_h; c++) if (!cell_val[c]) return 0;
+/* ---- mine layer ----
+ * Independent of the digit layer; the only bridge is the hint digit (a hint's digit is a given, so cell_val
+ * already holds it). "known mine" = candidate set {mine}; "unknown" = {safe, mine}. */
+
+static int map_mine_set(int c, int state) {          /* narrow cell c's mine candidates to `state` */
+    uint8_t nc = (uint8_t)(cell_mcand[c] & state);
+    if (nc == cell_mcand[c]) return 0;
+    cell_mcand[c] = nc;
+    if (!nc) contradiction = 1;
     return 1;
+}
+
+/* rank 5/6: a hint sees d mines among its neighbours. All found -> the rest are safe; exactly as many unknowns
+ * as mines still needed -> all of them are mines. */
+static int tech_mine_hint(int r, int tech) {
+    if (rule_kind[r] != RULE_MINE_HINT) return 0;
+    int h = rule_line[r], d = cell_val[h], m = 0, u = 0;
+    if (!d) return 0;
+    for (int k = 0; k < 8; k++) {
+        int c = func_king_cell(h, k, grid_w, grid_h);
+        if (c < 0) continue;
+        if (cell_mcand[c] == MC_MINE) m++; else if (cell_mcand[c] == MC_UNKNOWN) u++;
+    }
+    int need = d - m;
+    if (need < 0 || need > u) { contradiction = 1; return 0; }
+    if (!u) return 0;
+    int to = tech == TECH_MINE_SATISFIED ? (need == 0 ? MC_SAFE : 0) : (need == u ? MC_MINE : 0), changes = 0;
+    if (!to) return 0;
+    for (int k = 0; k < 8; k++) {
+        int c = func_king_cell(h, k, grid_w, grid_h);
+        if (c >= 0 && cell_mcand[c] == MC_UNKNOWN) changes += map_mine_set(c, to);
+    }
+    if (changes) sys_log(tech, r, -1, 0, changes);
+    return changes != 0;
+}
+
+/* rank 7: the mine counter, same logic over the whole board */
+static int tech_mine_total(int r) {
+    if (rule_kind[r] != RULE_MINE_TOTAL) return 0;
+    int n = grid_w * grid_h, m = 0, u = 0, changes = 0;
+    for (int c = 0; c < n; c++) { if (cell_mcand[c] == MC_MINE) m++; else if (cell_mcand[c] == MC_UNKNOWN) u++; }
+    int need = rule_param[r] - m;
+    if (need < 0 || need > u) { contradiction = 1; return 0; }
+    if (!u || (need != 0 && need != u)) return 0;
+    for (int c = 0; c < n; c++)
+        if (cell_mcand[c] == MC_UNKNOWN) changes += map_mine_set(c, need == 0 ? MC_SAFE : MC_MINE);
+    if (changes) sys_log(TECH_MINE_TOTAL, r, -1, 0, changes);
+    return changes != 0;
+}
+
+/* rank 8: hint A's unknown neighbours are all also B's. Then B's extra unknowns hold exactly need_B - need_A mines. */
+static int func_mine_need(int h, int *unknowns) {
+    int m = 0, u = 0;
+    for (int k = 0; k < 8; k++) {
+        int c = func_king_cell(h, k, grid_w, grid_h);
+        if (c < 0) continue;
+        if (cell_mcand[c] == MC_MINE) m++; else if (cell_mcand[c] == MC_UNKNOWN) u++;
+    }
+    *unknowns = u;
+    return cell_val[h] - m;
+}
+
+static int tech_mine_subset(void) {
+    for (int ra = 0; ra < n_rules; ra++) {
+        if (rule_kind[ra] != RULE_MINE_HINT) continue;
+        int a = rule_line[ra], ua, na = func_mine_need(a, &ua);
+        if (!ua) continue;
+        for (int rb = 0; rb < n_rules; rb++) {
+            if (rb == ra || rule_kind[rb] != RULE_MINE_HINT) continue;
+            int b = rule_line[rb], ub, nb = func_mine_need(b, &ub), subset = 1, diff = 0;
+            for (int k = 0; k < 8 && subset; k++) {
+                int c = func_king_cell(a, k, grid_w, grid_h);
+                if (c >= 0 && cell_mcand[c] == MC_UNKNOWN && !func_king_adjacent(b, c, grid_w)) subset = 0;
+            }
+            if (!subset) continue;
+            diff = ub - ua;
+            if (diff <= 0) continue;
+            int dneed = nb - na;
+            if (dneed < 0 || dneed > diff) { contradiction = 1; return 0; }
+            if (dneed != 0 && dneed != diff) continue;
+            int changes = 0;
+            for (int k = 0; k < 8; k++) {
+                int c = func_king_cell(b, k, grid_w, grid_h);
+                if (c < 0 || cell_mcand[c] != MC_UNKNOWN || func_king_adjacent(a, c, grid_w)) continue;
+                changes += map_mine_set(c, dneed == 0 ? MC_SAFE : MC_MINE);
+            }
+            if (changes) { sys_log(TECH_MINE_SUBSET, rb, -1, 0, changes); return 1; }
+        }
+    }
+    return 0;
+}
+
+static int func_all_done(void) {
+    int n = grid_w * grid_h, mines = sys_has_mines();
+    for (int c = 0; c < n; c++) {
+        if (!cell_val[c]) return 0;
+        if (mines && cell_mcand[c] == MC_UNKNOWN) return 0;
+    }
+    return 1;
+}
+
+const char *func_tech_name(int tech) {
+    static const char *names[TECH_COUNT] = { "last digit", "naked single", "hidden single", "sum combo", "sandwich",
+                                             "mine satisfied", "mine full", "mine total", "mine subset" };
+    return tech >= 0 && tech < TECH_COUNT ? names[tech] : "?";
+}
+
+/* One solver move: free propagation, then the first technique (by rank, <= ceiling) that changes anything.
+ * Returns 1 if a technique fired (logged as a step), -1 if both layers are solved, 0 if stuck or contradictory. */
+int sys_step(int ceiling) {
+    sys_propagate();
+    if (contradiction) return 0;
+    if (func_all_done()) return -1;
+    int fired = 0;
+    for (int t = 0; t <= ceiling && !fired; t++) {
+        if (t == TECH_NAKED_SINGLE) { fired = tech_naked_single(); continue; }
+        if (t == TECH_MINE_SUBSET) { fired = tech_mine_subset(); continue; }
+        for (int r = 0; r < n_rules && !fired; r++) {
+            switch (t) {
+            case TECH_LAST_DIGIT:     fired = tech_last_digit(r); break;
+            case TECH_HIDDEN_SINGLE:  fired = tech_hidden_single(r); break;
+            case TECH_SUM_COMBO:      fired = tech_sum_combo(r); break;
+            case TECH_SANDWICH:       fired = tech_sandwich(r); break;
+            case TECH_MINE_SATISFIED: fired = tech_mine_hint(r, TECH_MINE_SATISFIED); break;
+            case TECH_MINE_FULL:      fired = tech_mine_hint(r, TECH_MINE_FULL); break;
+            case TECH_MINE_TOTAL:     fired = tech_mine_total(r); break;
+            }
+        }
+    }
+    return contradiction ? 0 : fired;
 }
 
 /* Solve with techniques of rank <= ceiling. Assumes sys_reset_state() has run. */
 int sys_solve(int ceiling) {
-    sys_propagate();
-    while (!contradiction) {
-        if (func_all_filled()) return 1;
-        int fired = 0;
-        for (int t = 0; t <= ceiling && !fired; t++) {
-            if (t == TECH_NAKED_SINGLE) { fired = tech_naked_single(); continue; }
-            for (int r = 0; r < n_rules && !fired; r++) {
-                switch (t) {
-                case TECH_LAST_DIGIT:    fired = tech_last_digit(r); break;
-                case TECH_HIDDEN_SINGLE: fired = tech_hidden_single(r); break;
-                case TECH_SUM_COMBO:     fired = tech_sum_combo(r); break;
-                case TECH_SANDWICH:      fired = tech_sandwich(r); break;
-                }
-            }
-        }
-        if (!fired) return 0;
-        sys_propagate();
+    for (;;) {
+        int r = sys_step(ceiling);
+        if (r < 0) return 1;
+        if (r == 0) return 0;
     }
-    return 0;
 }

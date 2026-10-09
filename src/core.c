@@ -6,6 +6,9 @@ int8_t   cell_val[MAX_CELLS];
 uint16_t cell_cand[MAX_CELLS];
 uint8_t  cell_given[MAX_CELLS];
 int8_t   cell_sol[MAX_CELLS];
+uint8_t  cell_mine[MAX_CELLS];
+uint8_t  cell_hint[MAX_CELLS];
+uint8_t  cell_mcand[MAX_CELLS];
 
 int      n_rules;
 uint8_t  rule_kind[MAX_RULES];
@@ -38,6 +41,17 @@ void sys_init_tables(void) {
 int func_unit_len(int axis, int w, int h) { return axis == AXIS_ROW ? w : axis == AXIS_COL ? h : 9; }
 int func_unit_count(int axis, int w, int h) { return axis == AXIS_ROW ? h : axis == AXIS_COL ? w : (w / 3) * (h / 3); }
 int func_box_of(int r, int c, int w) { return (r / 3) * (w / 3) + c / 3; }
+
+static const int8_t KING_DR[8] = { -1, -1, -1, 0, 0, 1, 1, 1 };
+static const int8_t KING_DC[8] = { -1, 0, 1, -1, 1, -1, 0, 1 };
+int func_king_cell(int centre, int k, int w, int h) {
+    int r = centre / w + KING_DR[k], c = centre % w + KING_DC[k];
+    return (r < 0 || c < 0 || r >= h || c >= w) ? -1 : r * w + c;
+}
+int func_king_adjacent(int a, int b, int w) {
+    int dr = a / w - b / w, dc = a % w - b % w;
+    return a != b && dr >= -1 && dr <= 1 && dc >= -1 && dc <= 1;
+}
 
 int func_unit_cell(int axis, int line, int k, int w, int h) {
     (void)h;
@@ -122,7 +136,10 @@ void sys_reset_state(void) {
     for (int c = 0; c < grid_w * grid_h; c++) {
         cell_val[c] = cell_given[c] ? cell_sol[c] : 0;
         cell_cand[c] = cell_given[c] ? (uint16_t)BIT(cell_sol[c]) : (uint16_t)ALL_DIGITS;
+        cell_mcand[c] = MC_UNKNOWN;
     }
+    for (int r = 0; r < n_rules; r++)
+        if (rule_kind[r] == RULE_MINE_HINT) cell_mcand[rule_line[r]] = MC_SAFE;   /* a hint cell is never a mine */
     n_steps = 0;
     contradiction = 0;
 }
@@ -139,7 +156,7 @@ int sys_rand_below(int n) {
 int sys_lines_hold_at(int cell) {
     int r = cell / grid_w, col = cell % grid_w;
     for (int i = 0; i < n_rules; i++) {
-        if (rule_kind[i] == RULE_ALLDIFF) continue;
+        if (rule_kind[i] != RULE_SUM && rule_kind[i] != RULE_SANDWICH) continue;
         int line = rule_line[i], axis = rule_axis[i];
         if ((axis == AXIS_ROW ? r : col) != line) continue;
         if (!func_line_complete(cell_val, grid_w, grid_h, axis, line)) continue;
@@ -193,4 +210,55 @@ int sys_backtrack(int random_order, int check_lines, int limit) {
         sys_bt_enter(d, random_order);
     }
     return found;
+}
+
+int sys_has_mines(void) {
+    for (int r = 0; r < n_rules; r++) if (rule_kind[r] == RULE_MINE_TOTAL) return 1;
+    return 0;
+}
+
+/* ---- mine-layer oracle (test only): count assignments of mines consistent with every active hint and the
+ * total, found by row-major search with bound pruning. Independent of the human-style solver. ---- */
+static uint8_t ms_state[MAX_CELLS];                 /* 0 undecided, 1 safe, 2 mine */
+static int ms_found, ms_limit;
+
+static int ms_ok(void) {
+    int n = grid_w * grid_h;
+    for (int r = 0; r < n_rules; r++) {
+        if (rule_kind[r] == RULE_MINE_HINT) {
+            int h = rule_line[r], m = 0, u = 0;
+            for (int k = 0; k < 8; k++) {
+                int c = func_king_cell(h, k, grid_w, grid_h);
+                if (c < 0) continue;
+                if (ms_state[c] == 2) m++; else if (ms_state[c] == 0) u++;
+            }
+            if (m > cell_sol[h] || m + u < cell_sol[h]) return 0;
+        } else if (rule_kind[r] == RULE_MINE_TOTAL) {
+            int m = 0, u = 0;
+            for (int c = 0; c < n; c++) { if (ms_state[c] == 2) m++; else if (!ms_state[c]) u++; }
+            if (m > rule_param[r] || m + u < rule_param[r]) return 0;
+        }
+    }
+    return 1;
+}
+
+static void ms_rec(int i) {
+    int n = grid_w * grid_h;
+    if (ms_found >= ms_limit) return;
+    if (i == n) { ms_found++; return; }
+    int is_hint = 0;
+    for (int r = 0; r < n_rules; r++) if (rule_kind[r] == RULE_MINE_HINT && rule_line[r] == i) is_hint = 1;
+    for (int st = 1; st <= 2; st++) {
+        if (is_hint && st == 2) continue;
+        ms_state[i] = (uint8_t)st;
+        if (ms_ok()) ms_rec(i + 1);
+    }
+    ms_state[i] = 0;
+}
+
+int sys_count_mine_solutions(int limit) {
+    for (int c = 0; c < MAX_CELLS; c++) ms_state[c] = 0;
+    ms_found = 0; ms_limit = limit;
+    ms_rec(0);
+    return ms_found;
 }

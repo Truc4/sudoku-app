@@ -26,10 +26,13 @@
 #define BIT(d)     (1u << (d))
 #define ALL_DIGITS 0x3FEu               /* bits 1..9 */
 
-enum { AXIS_ROW, AXIS_COL, AXIS_BOX };
-enum { RULE_ALLDIFF, RULE_SUM, RULE_SANDWICH, RULE_KINDS };
+enum { AXIS_ROW, AXIS_COL, AXIS_BOX, AXIS_CELL };
+enum { RULE_ALLDIFF, RULE_SUM, RULE_SANDWICH, RULE_MINE_HINT, RULE_MINE_TOTAL, RULE_OFF, RULE_KINDS };
+enum { SHAPE_NONE, SHAPE_KING };                   /* hint neighbourhoods; the UI maps a shape to a colour */
+enum { MC_SAFE = 1, MC_MINE = 2, MC_UNKNOWN = 3 }; /* mine-layer candidate set: bit0 may be safe, bit1 may be a mine */
 /* Rank order == priority order. A level's ceiling is the highest technique a player may need. */
-enum { TECH_LAST_DIGIT, TECH_NAKED_SINGLE, TECH_HIDDEN_SINGLE, TECH_SUM_COMBO, TECH_SANDWICH, TECH_COUNT };
+enum { TECH_LAST_DIGIT, TECH_NAKED_SINGLE, TECH_HIDDEN_SINGLE, TECH_SUM_COMBO, TECH_SANDWICH,
+       TECH_MINE_SATISFIED, TECH_MINE_FULL, TECH_MINE_TOTAL, TECH_MINE_SUBSET, TECH_COUNT };
 
 /* ---- pools (columns) ---- */
 extern int      grid_w, grid_h;
@@ -37,6 +40,9 @@ extern int8_t   cell_val[MAX_CELLS];    /* 0 = empty */
 extern uint16_t cell_cand[MAX_CELLS];   /* bitmask, bit d set = digit d still possible */
 extern uint8_t  cell_given[MAX_CELLS];
 extern int8_t   cell_sol[MAX_CELLS];
+extern uint8_t  cell_mine[MAX_CELLS];   /* solution of the mine layer */
+extern uint8_t  cell_hint[MAX_CELLS];   /* 0 plain, else SHAPE_* of an active hint centred here */
+extern uint8_t  cell_mcand[MAX_CELLS];  /* solver's mine-layer candidates (MC_*) */
 
 extern int      n_rules;
 extern uint8_t  rule_kind[MAX_RULES];
@@ -65,6 +71,11 @@ int  sys_rand_below(int n);
 int  sys_backtrack(int random_order, int check_lines, int limit);
 int  sys_lines_hold_at(int cell);
 
+int  func_king_cell(int centre, int k, int w, int h); /* k-th of 8 surrounding cells, -1 off-board */
+int  func_king_adjacent(int a, int b, int w);
+int  sys_has_mines(void);
+int  sys_count_mine_solutions(int limit);
+
 int  func_unit_len(int axis, int w, int h);
 int  func_unit_count(int axis, int w, int h);
 int  func_unit_cell(int axis, int line, int k, int w, int h);
@@ -76,12 +87,15 @@ int  func_line_complete(const int8_t *v, int w, int h, int axis, int line);
 int  func_combo_union(int k, int R, unsigned allowed); /* -1 none; else OR of all k-subsets summing to R */
 
 /* ---- solver.c ---- */
-int  sys_solve(int ceiling);                          /* 1 if every cell filled */
+int  sys_step(int ceiling);                           /* 1 a technique fired, 0 stuck/contradiction, -1 solved */
+int  sys_solve(int ceiling);                          /* 1 if both layers are fully decided */
+const char *func_tech_name(int tech);
 
 /* ---- gen.c ---- */
-#define NLEVELS 10
+#define NLEVELS 14
 extern const char *lvl_name[NLEVELS];
 int  sys_generate(int level, uint64_t seed);          /* attempts used, or 0 on failure */
 int  func_level_ceiling(int level);
 int  func_level_must_use(int level);
+int  func_level_has_mines(int level);
 #endif

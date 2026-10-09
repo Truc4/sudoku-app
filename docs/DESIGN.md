@@ -245,6 +245,10 @@ one extra join row:
 | 7 | 6×6 | sum on a row | ~17 |
 | 8 | 6×6 | sum row + sandwich on another row | ~19 |
 | 9 | 6×6 | sums/sandwiches on rows and a column | ~20 |
+| 10 | 3×3 | **minesweeper**: a hint, bombs and the counter | 1 |
+| 11 | 6×6 | mine hints and the counter | 10 |
+| 12 | 6×6 | overlapping hints (subset technique) | 10 |
+| 13 | 6×6 | mines with a sum row and a sandwich row | ~18 |
 
 The grid stays 3×3 for the first six levels, then jumps straight to 6×6 (no 6×3 stage): line clues are what let more than one digit be missing, so the
 clue count and the empty-cell count rise together. (Level 3 is a big jump; a "two rows + one column" level
@@ -275,4 +279,5 @@ Findings so far:
 3. Each new rule adds: a `RULE_*` kind, a validator, a generator target derived from the solution, a technique (or
    two), and a curriculum row. Nothing else should change.
 
-The minesweeper variant is specified in [MINESWEEPER.md](MINESWEEPER.md).
+The minesweeper variant is specified in [MINESWEEPER.md](MINESWEEPER.md) and implemented as levels 10–13. The core API
+is described in [ENGINE.md](ENGINE.md).

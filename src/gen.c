@@ -7,22 +7,41 @@
 #include "sb.h"
 
 const char *lvl_name[NLEVELS] = {
-    "one missing digit", "two boxes (6x3)",
-    "sum rule on a row", "sum row + sandwich on another row", "6x6 with sum and sandwich lines",
+    "one missing digit",
+    "3x3: sum on a row",
+    "3x3: sums on two rows",
+    "3x3: sums on rows and columns",
+    "3x3: sum row + sandwich on another row",
+    "3x3: sums and a sandwich",
+    "two boxes (6x3)",
+    "6x3: sum on a row",
+    "6x3: sum row + sandwich on another row",
+    "6x6: sums and sandwiches on rows and a column",
 };
-static const int lvl_w[NLEVELS]         = { 3, 6, 6, 6, 6 };
-static const int lvl_h[NLEVELS]         = { 3, 3, 3, 3, 6 };
-static const int lvl_max_empty[NLEVELS] = { 1, 8, 99, 99, 99 };
-static const int lvl_ceiling[NLEVELS]   = { TECH_LAST_DIGIT, TECH_NAKED_SINGLE,
-                                            TECH_SUM_COMBO, TECH_SANDWICH, TECH_SANDWICH };
-static const int lvl_must_use[NLEVELS]  = { -1, -1, TECH_SUM_COMBO, TECH_SANDWICH, TECH_SANDWICH };
+static const int lvl_w[NLEVELS]         = { 3, 3, 3, 3, 3, 3, 6, 6, 6, 6 };
+static const int lvl_h[NLEVELS]         = { 3, 3, 3, 3, 3, 3, 3, 3, 3, 6 };
+static const int lvl_max_empty[NLEVELS] = { 1, 99, 99, 99, 99, 99, 8, 99, 99, 99 };
+static const int lvl_ceiling[NLEVELS]   = { TECH_LAST_DIGIT, TECH_SUM_COMBO, TECH_SUM_COMBO, TECH_SUM_COMBO,
+                                            TECH_SANDWICH, TECH_SANDWICH, TECH_NAKED_SINGLE, TECH_SUM_COMBO,
+                                            TECH_SANDWICH, TECH_SANDWICH };
+static const int lvl_must_use[NLEVELS]  = { -1, TECH_SUM_COMBO, TECH_SUM_COMBO, TECH_SUM_COMBO,
+                                            TECH_SANDWICH, TECH_SANDWICH, -1, TECH_SUM_COMBO,
+                                            TECH_SANDWICH, TECH_SANDWICH };
 
-/* join table: line rules added by each level */
-#define N_LR 6
-static const int lr_level[N_LR] = { 2,        3,        3,            4,        4,            4 };
-static const int lr_kind[N_LR]  = { RULE_SUM, RULE_SUM, RULE_SANDWICH, RULE_SUM, RULE_SANDWICH, RULE_SUM };
-static const int lr_axis[N_LR]  = { AXIS_ROW, AXIS_ROW, AXIS_ROW,     AXIS_ROW, AXIS_ROW,     AXIS_COL };
-static const int lr_line[N_LR]  = { 0,        0,        1,            0,        2,            4 };
+/* join table: line rules added by each level (level, kind, axis, line) */
+#define S RULE_SUM
+#define W RULE_SANDWICH
+#define R AXIS_ROW
+#define C AXIS_COL
+#define N_LR 18
+static const int lr_level[N_LR] = { 1, 2, 2, 3, 3, 3, 3, 4, 4, 5, 5, 5, 7, 8, 8, 9, 9, 9 };
+static const int lr_kind[N_LR]  = { S, S, S, S, S, S, S, S, W, S, S, W, S, S, W, S, W, S };
+static const int lr_axis[N_LR]  = { R, R, R, R, R, C, C, R, R, R, C, R, R, R, R, R, R, C };
+static const int lr_line[N_LR]  = { 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 2, 4 };
+#undef S
+#undef W
+#undef R
+#undef C
 
 int func_level_ceiling(int level) { return lvl_ceiling[level]; }
 int func_level_must_use(int level) { return lvl_must_use[level]; }

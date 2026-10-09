@@ -233,17 +233,26 @@ row, column or box. A unit's cells are *computed* from `(axis, line, k)`; there 
 Curriculum is data too: a level table plus a `(level, rule)` join table, so "add a sandwich to a different row" is
 one extra join row:
 
-| Level | Grid | New idea |
-|---|---|---|
-| 0 | 3×3 | one missing digit (last digit) |
-| 1 | 6×3 | two boxes, rows matter (naked single) |
-| 2 | 6×3 | **sum** clue on row 1 (Kakuro-style combo technique) |
-| 3 | 6×3 | **sandwich** clue on a *different* row |
-| 4 | 6×6 | sum/sandwich on rows and a column |
+| Level | Grid | New idea | Avg empty cells |
+|---|---|---|---|
+| 0 | 3×3 | one missing digit (last digit) | 1 |
+| 1 | 3×3 | **sum** clue on a row (Kakuro-style combo technique) | 2 |
+| 2 | 3×3 | sums on two rows | 3 |
+| 3 | 3×3 | sums on rows *and* columns | ~7 |
+| 4 | 3×3 | sum on one row, **sandwich** on a *different* row | ~3 |
+| 5 | 3×3 | sums plus a sandwich | ~6 |
+| 6 | 6×3 | two boxes, rows matter (naked single) | 4 |
+| 7 | 6×3 | sum on a row | ~6 |
+| 8 | 6×3 | sum row + sandwich on another row | ~8 |
+| 9 | 6×6 | sums/sandwiches on rows and a column | ~20 |
+
+The grid stays 3×3 for the first six levels: line clues are what let more than one digit be missing, so the
+clue count and the empty-cell count rise together. (Level 3 is a big jump; a "two rows + one column" level
+could sit between 2 and 3.)
 
 Findings so far:
-- A lone 3×3 box is unique only with exactly one empty cell, so "a few missing digits" needs the second box.
-  The generator found that for us: it just stops removing givens.
+- A lone 3×3 box with no clues is unique only with exactly one empty cell. Sum/sandwich clues on its rows and
+  columns are what allow 2, 3, … empty cells, so they come *before* the grid grows.
 - Sum and sandwich both lean on one function, `func_combo_union(k, R, allowed)` (the Kakuro combo table computed
   on demand). The sandwich technique enumerates (position of 1, position of 9) pairs, keeps those whose in-between
   cells can still reach the clue, and restricts each cell to what a surviving placement allows. It stays local to the

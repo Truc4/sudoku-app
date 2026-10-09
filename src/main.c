@@ -80,7 +80,7 @@ static int sys_cmd_selftest(int seeds) {
             for (int i = 0; i < n_steps; i++) tech_hits[step_tech[i]]++;
             steps += n_steps;
         }
-        printf("level %d %-34s avg empty %5.1f, avg steps %5.1f  |", level, lvl_name[level], (double)empties / seeds, (double)steps / seeds);
+        printf("level %d %-46s avg empty %5.1f, avg steps %5.1f  |", level, lvl_name[level], (double)empties / seeds, (double)steps / seeds);
         for (int t = 0; t < TECH_COUNT; t++) if (tech_hits[t]) printf(" %s:%d", tech_name[t], tech_hits[t]);
         putchar('\n');
     }

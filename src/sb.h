@@ -79,7 +79,7 @@ int  func_combo_union(int k, int R, unsigned allowed); /* -1 none; else OR of al
 int  sys_solve(int ceiling);                          /* 1 if every cell filled */
 
 /* ---- gen.c ---- */
-#define NLEVELS 5
+#define NLEVELS 10
 extern const char *lvl_name[NLEVELS];
 int  sys_generate(int level, uint64_t seed);          /* attempts used, or 0 on failure */
 int  func_level_ceiling(int level);

@@ -241,12 +241,12 @@ one extra join row:
 | 3 | 3×3 | sums on rows *and* columns | ~7 |
 | 4 | 3×3 | sum on one row, **sandwich** on a *different* row | ~3 |
 | 5 | 3×3 | sums plus a sandwich | ~6 |
-| 6 | 6×3 | two boxes, rows matter (naked single) | 4 |
-| 7 | 6×3 | sum on a row | ~6 |
-| 8 | 6×3 | sum row + sandwich on another row | ~8 |
+| 6 | 6×6 | no clues; rows, columns and four boxes (capped at 10 empty) | 10 |
+| 7 | 6×6 | sum on a row | ~17 |
+| 8 | 6×6 | sum row + sandwich on another row | ~19 |
 | 9 | 6×6 | sums/sandwiches on rows and a column | ~20 |
 
-The grid stays 3×3 for the first six levels: line clues are what let more than one digit be missing, so the
+The grid stays 3×3 for the first six levels, then jumps straight to 6×6 (no 6×3 stage): line clues are what let more than one digit be missing, so the
 clue count and the empty-cell count rise together. (Level 3 is a big jump; a "two rows + one column" level
 could sit between 2 and 3.)
 
@@ -274,3 +274,5 @@ Findings so far:
    rule id and walk its members; line rules become the special case where the members form a row or column.
 3. Each new rule adds: a `RULE_*` kind, a validator, a generator target derived from the solution, a technique (or
    two), and a curriculum row. Nothing else should change.
+
+The minesweeper variant is specified in [MINESWEEPER.md](MINESWEEPER.md).

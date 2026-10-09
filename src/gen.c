@@ -13,16 +13,16 @@ const char *lvl_name[NLEVELS] = {
     "3x3: sums on rows and columns",
     "3x3: sum row + sandwich on another row",
     "3x3: sums and a sandwich",
-    "two boxes (6x3)",
-    "6x3: sum on a row",
-    "6x3: sum row + sandwich on another row",
+    "6x6: no clues",
+    "6x6: sum on a row",
+    "6x6: sum row + sandwich on another row",
     "6x6: sums and sandwiches on rows and a column",
 };
 static const int lvl_w[NLEVELS]         = { 3, 3, 3, 3, 3, 3, 6, 6, 6, 6 };
-static const int lvl_h[NLEVELS]         = { 3, 3, 3, 3, 3, 3, 3, 3, 3, 6 };
-static const int lvl_max_empty[NLEVELS] = { 1, 99, 99, 99, 99, 99, 8, 99, 99, 99 };
+static const int lvl_h[NLEVELS]         = { 3, 3, 3, 3, 3, 3, 6, 6, 6, 6 };
+static const int lvl_max_empty[NLEVELS] = { 1, 99, 99, 99, 99, 99, 10, 99, 99, 99 };
 static const int lvl_ceiling[NLEVELS]   = { TECH_LAST_DIGIT, TECH_SUM_COMBO, TECH_SUM_COMBO, TECH_SUM_COMBO,
-                                            TECH_SANDWICH, TECH_SANDWICH, TECH_NAKED_SINGLE, TECH_SUM_COMBO,
+                                            TECH_SANDWICH, TECH_SANDWICH, TECH_HIDDEN_SINGLE, TECH_SUM_COMBO,
                                             TECH_SANDWICH, TECH_SANDWICH };
 static const int lvl_must_use[NLEVELS]  = { -1, TECH_SUM_COMBO, TECH_SUM_COMBO, TECH_SUM_COMBO,
                                             TECH_SANDWICH, TECH_SANDWICH, -1, TECH_SUM_COMBO,

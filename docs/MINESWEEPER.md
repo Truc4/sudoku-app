@@ -80,8 +80,7 @@ All are local to one hint; none needs a hypothetical.
 
 Since hints are always given, the mine layer needs nothing from the digit layer and vice versa: **the two layers share
 only the hint cells.** That is a clean separation (each layer's solver is independent), but it means the interesting
-cross-layer play must come from the *shape of the puzzle* rather than from deductions. See Q7 for a way to get real
-coupling.
+cross-layer play comes from the *shape of the puzzle* rather than from deductions. That is intentional (§9).
 
 Difficulty is the same metric as before (highest rank, step count, number of simultaneously available techniques).
 
@@ -127,12 +126,14 @@ Introduced after sums/sandwiches so each concept arrives alone.
 | M4 | 6×6 | second hint shape (orthogonal-only); leads into the chess neighbourhood |
 | M5 | 6×6 | combine with a sum row and a sandwich row |
 
-## 9. Open questions
+## 9. Decisions and open questions
 
-1. **(Q7) Real coupling between the layers.** As specified, the layers touch only at hint cells. One extra rule
-   would couple them properly by constraining the *digits that sit on mines*, for example: the digits on all bombs
-   sum to a given number, or bombs never share a digit, or all bombs are odd. Then knowing where a bomb is tells you
-   something about its digit and vice versa. Want one of these (or something else), or keep the layers separate?
+No open questions.
+
+**Layers stay separate.** The digit layer and the mine layer touch only at hint cells; there is no rule constraining the
+digits on bombs. They already inform each other compositionally in the player's head (hint digits are free sudoku
+givens, and sudoku progress makes hints readable), so nothing is forced. Revisit only if playtesting says the mine
+layer feels bolted on.
 
 Resolved: checking is manual and available at any time (rule 8); hint = 8 surrounding cells and the hint cell is safe; the counter is on every minesweeper level; the final
 check requires every bomb marked; bomb and flag are one mark; hints are always given digits; any cell can be a mine; mine

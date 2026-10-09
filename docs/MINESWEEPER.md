@@ -4,6 +4,9 @@ Status: **design only, nothing implemented.** Decisions already made are stated 
 
 ## 1. The idea in one paragraph
 
+(Terminology: a **layer** is one of the two puzzles on the board. The *digit layer* is the sudoku part: what number is
+in each cell. The *mine layer* is the minesweeper part: which cells are bombs. Each cell has an answer in both.)
+
 The board is a normal, complete sudoku-but puzzle: every cell holds a digit. On top of it sits a **second layer**:
 some cells are **mines** (bombs). A mine still holds its digit; being a mine is just an extra property. Some **given
 digits are drawn in a colour**, and a coloured digit is a **hint**: its number is the count of mines among its 8
@@ -33,7 +36,10 @@ Why that is a good design:
    reads better in the UI).
 7. The final check only requires that **every bomb is marked**. Combined with the always-visible counter this is exact:
    marking more cells than the counter allows is not a valid solution, so "mark everything" cannot win.
-8. Uniqueness and "no guessing" hold as before, for both layers, verified by an independent brute-force solver.
+8. **Checking is manual.** The player can press check at any time; nothing is checked automatically. Check compares the
+   current digits and bomb marks with the solution and reports what is wrong (a wrong digit, or a mark on a non-mine),
+   without revealing the answers. Missing entries are not errors.
+9. Uniqueness and "no guessing" hold as before, for both layers, verified by an independent brute-force solver.
 
 ## 3. Marks
 
@@ -127,9 +133,7 @@ Introduced after sums/sandwiches so each concept arrives alone.
    would couple them properly by constraining the *digits that sit on mines*, for example: the digits on all bombs
    sum to a given number, or bombs never share a digit, or all bombs are odd. Then knowing where a bomb is tells you
    something about its digit and vice versa. Want one of these (or something else), or keep the layers separate?
-2. **(Q8) Wrong marks.** Marking a non-mine is not forbidden by the final check (the counter keeps the total exact).
-   Should "check" mode flag a wrong mark early, or only the final submit?
 
-Resolved: hint = 8 surrounding cells and the hint cell is safe; the counter is on every minesweeper level; the final
+Resolved: checking is manual and available at any time (rule 8); hint = 8 surrounding cells and the hint cell is safe; the counter is on every minesweeper level; the final
 check requires every bomb marked; bomb and flag are one mark; hints are always given digits; any cell can be a mine; mine
 cells hold digits; mine density is generated backwards; 6×6 is both the next grid after 3×3 and the minesweeper board.

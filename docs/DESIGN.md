@@ -204,10 +204,64 @@ touches only the device's systems and columns.
 6. **M5 — Native shell:** SDL3 (or sokol) host + store/haptics; try iOS/Android; decide distribution.
 7. **M6+ — More rules, endless mode, adaptive selection.**
 
-## 11. Questions for when you're at the computer
+## 11. Open questions
 
 - Which repo should this live in — a new `sudoku-but` repo, or a subfolder of an existing one?
 - Is web/PWA-first OK, or is native app-store distribution a day-one requirement?
 - Preferred first five rules after cage sums?
 - How strict is "no lookahead": single-step deductions only, or short chains (pairs, thermo runs) allowed?
 - Fixed hand-tuned curriculum for v1, or adaptive from the start?
+
+## 12. C prototype (first implementation)
+
+The first prototype is plain C99 in `src/`, written in the *shape* of Arche so it ports mechanically:
+static column arrays in fixed pools, no malloc, no per-element structs, no pointers to rows, no callbacks.
+Functions follow Arche's split by naming convention: `func_*` pure, `map_*` per-row, `sys_*` whole-pool,
+`tech_*` one solver deduction. Details are in the header comment of `src/sb.h`.
+
+```
+make            # build/sudoku
+make test       # selftest: brute-force uniqueness + human-solver replay for every level
+./build/sudoku levels
+./build/sudoku gen <level> [seed]    # puzzle, solver trace, solution
+```
+
+### Key decision: rules attach to a single line first
+
+Many rules only concern one row or column, so v0 rules are rows of `(kind, axis, line, param)` where `axis` is
+row, column or box. A unit's cells are *computed* from `(axis, line, k)`; there is no membership join table yet.
+Curriculum is data too: a level table plus a `(level, rule)` join table, so "add a sandwich to a different row" is
+one extra join row:
+
+| Level | Grid | New idea |
+|---|---|---|
+| 0 | 3×3 | one missing digit (last digit) |
+| 1 | 6×3 | two boxes, rows matter (naked single) |
+| 2 | 6×3 | **sum** clue on row 1 (Kakuro-style combo technique) |
+| 3 | 6×3 | **sandwich** clue on a *different* row |
+| 4 | 6×6 | sum/sandwich on rows and a column |
+
+Findings so far:
+- A lone 3×3 box is unique only with exactly one empty cell, so "a few missing digits" needs the second box.
+  The generator found that for us: it just stops removing givens.
+- Sum and sandwich both lean on one function, `func_combo_union(k, R, allowed)` (the Kakuro combo table computed
+  on demand). The sandwich technique enumerates (position of 1, position of 9) pairs, keeps those whose in-between
+  cells can still reach the clue, and restricts each cell to what a surviving placement allows. It stays local to the
+  line, so it does not count as lookahead.
+- Sum clues assume the line is all-different. Hidden single / last digit only apply to 9-cell units (a 6-wide row need
+  not contain every digit). Sandwich clues assert that the line contains both a 1 and a 9 (the generator rejects
+  solutions where it does not).
+- Free candidate elimination (auto pencil marks) is not a logged step; only technique firings are.
+- Every generated puzzle is verified by an independent brute-force solver (exactly one solution) and replayed by the
+  human solver using only the level's techniques.
+
+### Roadmap past line rules
+
+1. **Grow the grid** beyond 6×6 and start **offset (black) cells**, Kakuro-style: the grid gets a cell *kind*
+   column (digit / blocked / clue) and units are runs of digit cells, so `func_unit_cell` stops being arithmetic.
+2. **Membership join table** `Member(rule, cell, ord)`: needed as soon as a rule covers an arbitrary cell set.
+   Thermo (ordered chain), killer cages (sum over a region), chess (knight/king-move constraints between cells),
+   and minesweeper (neighbour-count clues) are all rules over cell sets or neighbourhoods. Then `tech_*` take the
+   rule id and walk its members; line rules become the special case where the members form a row or column.
+3. Each new rule adds: a `RULE_*` kind, a validator, a generator target derived from the solution, a technique (or
+   two), and a curriculum row. Nothing else should change.

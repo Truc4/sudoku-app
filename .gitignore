@@ -1,1 +1,9 @@
 build/
+
+# Android/Gradle local build output (android/ has no committed wrapper; CI provisions Gradle directly)
+android/.gradle/
+android/app/build/
+android/local.properties
+android/.idea/
+android/*.iml
+android/app/.cxx/
